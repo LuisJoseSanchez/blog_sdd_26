@@ -39,7 +39,7 @@ python src/manage.py runserver
 
 El servidor de desarrollo estará disponible en <http://127.0.0.1:8000/>.
 
-El panel administrativo se encuentra en `/admin/`; para crear un usuario administrador, ejecuta:
+El panel administrativo se encuentra en <http://127.0.0.1:8000/admin/>; para crear un usuario administrador, ejecuta:
 
 ```bash
 python src/manage.py createsuperuser
