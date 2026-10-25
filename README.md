@@ -19,10 +19,27 @@ El editor podrá mantener los artículos y la presentación del autor desde el p
 
 ## Tecnologías previstas
 
-- Django para el backend y el renderizado de páginas en el servidor.
+- Python 3.12 y Django 5.2 LTS para el backend y el renderizado de páginas en el servidor.
 - Modelos y migraciones Django para persistir los contenidos.
 - Plantillas HTML semánticas y CSS adaptable.
 - SQLite para el desarrollo inicial; la base de datos de producción se decidirá según el entorno de despliegue.
+- Código Django, dependencias y `manage.py` organizados en `src/`; la documentación y la configuración general del repositorio permanecen en la raíz.
+
+## Puesta en marcha
+
+Activa el entorno virtual, instala las dependencias y prepara la base de datos:
+
+```bash
+source .venv/bin/activate
+python -m pip install -r src/requirements.txt
+python src/manage.py migrate
+python src/manage.py load_demo_content
+python src/manage.py runserver
+```
+
+El servidor de desarrollo estará disponible en <http://127.0.0.1:8000/>. El panel administrativo se encuentra en `/admin/`; para crear un usuario administrador, ejecuta `python src/manage.py createsuperuser`.
+
+En producción, configura `PYTHONPATH=src`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` y `DJANGO_DEBUG=False`, y despliega detrás de HTTPS. No reutilices la clave de desarrollo.
 
 ## Fuera del alcance inicial
 
@@ -36,4 +53,4 @@ No se contemplan cuentas para lectores, comentarios, suscripciones, buscador, in
 - [Alcance](./spec/scope.md)
 - [Criterios de aceptación](./spec/acceptance_criteria.md)
 
-> El repositorio recoge la documentación y definición del producto. La estructura técnica y la implementación de la aplicación se concretarán durante el desarrollo.
+> El proyecto Django y la aplicación `blog` están en `src/`. `load_demo_content` añade artículos de ejemplo y genera imágenes localmente para que puedan editarse o retirarse desde Django Admin.
