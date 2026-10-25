@@ -37,7 +37,15 @@ python src/manage.py load_demo_content
 python src/manage.py runserver
 ```
 
-El servidor de desarrollo estará disponible en <http://127.0.0.1:8000/>. El panel administrativo se encuentra en `/admin/`; para crear un usuario administrador, ejecuta `python src/manage.py createsuperuser`.
+El servidor de desarrollo estará disponible en <http://127.0.0.1:8000/>.
+
+El panel administrativo se encuentra en `/admin/`; para crear un usuario administrador, ejecuta:
+
+```bash
+python src/manage.py createsuperuser
+```
+
+No hay un usuario ni una clave predeterminados para el panel. Inicia sesión con las credenciales del superusuario que hayas creado.
 
 En producción, configura `PYTHONPATH=src`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` y `DJANGO_DEBUG=False`, y despliega detrás de HTTPS. No reutilices la clave de desarrollo.
 
