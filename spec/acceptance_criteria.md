@@ -97,3 +97,40 @@ Estos criterios concretan el PRD y el alcance de la primera versión. Cada crite
 **Cuando** Django procesa la solicitud  
 **Entonces** el servidor entrega el contenido de la página  
 **Y** la lectura y la navegación básica no dependen de JavaScript.
+
+## CA-15: Listar artículos mediante la API
+
+**Dado** que existen artículos publicados y borradores
+**Cuando** una persona solicita `GET /api/articulos/`
+**Entonces** recibe HTTP 200 y una lista JSON de artículos publicados
+**Y** cada elemento contiene `id`, `titulo`, `cuerpo` y `estado: "publicado"`
+**Y** ningún borrador aparece en la respuesta.
+
+## CA-16: Consultar un artículo mediante la API
+
+**Dado** que existe un artículo publicado
+**Cuando** una persona solicita `GET /api/articulos/{id}/`
+**Entonces** recibe HTTP 200 con JSON que contiene `id`, `titulo`, `cuerpo` y `estado: "publicado"`
+**Y** un identificador inexistente o correspondiente a un borrador responde HTTP 404.
+
+## CA-17: Crear un borrador mediante la API
+
+**Dado** que una persona editora activa presenta un token de Django válido
+**Cuando** envía `POST /api/articulos/` con `titulo` y `cuerpo` válidos
+**Entonces** se crea un artículo con `published=False` y responde HTTP 201
+**Y** el JSON de respuesta contiene `id`, `titulo`, `cuerpo` y `estado: "borrador"`
+**Y** el artículo no aparece en la web ni en los endpoints GET.
+
+## CA-18: Proteger la creación de borradores
+
+**Dado** que la persona no presenta un token válido o no tiene acceso editorial
+**Cuando** intenta enviar `POST /api/articulos/`
+**Entonces** la API responde HTTP 401 o 403 según corresponda
+**Y** no se crea ningún artículo.
+
+## CA-19: Validar datos de entrada de la API
+
+**Dado** que una solicitud POST omite el título o el cuerpo, o proporciona valores vacíos o inválidos
+**Cuando** se procesa la solicitud
+**Entonces** la API responde con un error de validación JSON
+**Y** no se crea ningún artículo.

@@ -13,6 +13,7 @@ Definir qué incluye la primera versión del blog de robótica y qué queda fuer
 - **Diseño y accesibilidad:** interfaz legible y adaptable a móviles y ordenadores, con HTML semántico, encabezados coherentes, enlaces descriptivos y uso mediante teclado.
 - **Contenido inicial:** artículos de ejemplo sobre robótica y una presentación inicial del autor, sustituibles o eliminables.
 - **Gestión editorial:** Django Admin permite al editor autorizado crear, editar y retirar artículos, y actualizar la presentación del autor. Los artículos no publicados no aparecen en las páginas públicas.
+- **API REST:** `GET /api/articulos/` lista artículos publicados y `GET /api/articulos/<id>/` consulta uno por identificador. `POST /api/articulos/` permite a un editor autorizado, mediante token de Django, crear borradores enviando título y cuerpo. La API no ofrece publicación ni acceso a borradores.
 
 ## Excluido
 
@@ -22,6 +23,7 @@ Definir qué incluye la primera versión del blog de robótica y qué queda fuer
 - Buscador.
 - Flujos editoriales avanzados, como revisión, programación de publicaciones o múltiples roles.
 - Funciones de interacción social.
+- Registro público, autenticación propia de la API o publicación de artículos mediante API.
 
 ## Límites y supuestos
 

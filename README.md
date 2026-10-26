@@ -16,10 +16,12 @@ El editor podrá mantener los artículos y la presentación del autor desde el p
 - Navegación básica que funciona sin JavaScript.
 - Página 404 propia para artículos inexistentes.
 - Gestión de artículos y de la presentación del autor mediante Django Admin, restringida a usuarios autorizados.
+- API REST para consultar artículos publicados y crear borradores con un token de administrador.
 
 ## Tecnologías previstas
 
 - Python 3.12 y Django 5.2 LTS para el backend y el renderizado de páginas en el servidor.
+- Django REST Framework y tokens de autenticación de Django para la API.
 - Modelos y migraciones Django para persistir los contenidos.
 - Plantillas HTML semánticas y CSS adaptable.
 - SQLite para el desarrollo inicial; la base de datos de producción se decidirá según el entorno de despliegue.
@@ -48,6 +50,32 @@ python src/manage.py createsuperuser
 No hay un usuario ni una clave predeterminados para el panel. Inicia sesión con las credenciales del superusuario que hayas creado.
 
 En producción, configura `PYTHONPATH=src`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` y `DJANGO_DEBUG=False`, y despliega detrás de HTTPS. No reutilices la clave de desarrollo.
+
+## API REST
+
+La API devuelve JSON con `id`, `titulo`, `cuerpo` y `estado`. Los endpoints de lectura son públicos y solo incluyen artículos publicados:
+
+```bash
+curl http://127.0.0.1:8000/api/articulos/
+curl http://127.0.0.1:8000/api/articulos/1/
+```
+
+Para crear un borrador, genera un token para el usuario editor existente:
+
+```bash
+python src/manage.py drf_create_token nombre_de_usuario
+```
+
+Envía el token en el encabezado `Authorization`. El cuerpo requiere `titulo` y `cuerpo`; el artículo siempre se guarda como borrador:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/articulos/ \
+  -H "Authorization: Token TU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"titulo":"Robótica educativa","cuerpo":"Contenido del borrador."}'
+```
+
+La cuenta debe tener acceso administrativo (`is_staff`). No compartas ni publiques el token.
 
 ## Fuera del alcance inicial
 

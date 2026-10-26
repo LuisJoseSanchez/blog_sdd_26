@@ -1,13 +1,16 @@
 from datetime import timedelta
 from io import BytesIO
+import json
 import tempfile
 
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from PIL import Image
+from rest_framework.authtoken.models import Token
 
 from .models import AboutPage, Article
 
@@ -133,6 +136,173 @@ class BlogPageTests(TestCase):
                 self.assertContains(response, 'aria-label="Navegación principal"')
                 self.assertContains(response, reverse("about"))
                 self.assertContains(response, reverse("home"))
+
+
+class ArticleApiTests(TestCase):
+    def setUp(self):
+        temporary_media = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary_media.cleanup)
+        self.enterContext(override_settings(MEDIA_ROOT=temporary_media.name))
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_superuser(
+            username="api-editor",
+            email="api-editor@example.com",
+            password="Strong-test-password-123!",
+        )
+        self.admin_token = Token.objects.create(user=self.admin)
+        self.reader = user_model.objects.create_user(
+            username="api-reader",
+            password="Strong-test-password-123!",
+        )
+        self.reader_token = Token.objects.create(user=self.reader)
+
+    def create_article(self, **overrides):
+        article_data = {
+            "title": "Artículo publicado",
+            "slug": "articulo-publicado",
+            "image": make_test_image(),
+            "publication_date": timezone.now(),
+            "excerpt": "Extracto.",
+            "content": "Contenido completo.",
+            "author": "Ada",
+            "published": True,
+        }
+        article_data.update(overrides)
+        return Article.objects.create(**article_data)
+
+    def test_public_list_and_detail_return_only_published_articles(self):
+        published = self.create_article()
+        draft = self.create_article(
+            title="Borrador privado",
+            slug="borrador-privado",
+            published=False,
+        )
+
+        list_response = self.client.get("/api/articulos/")
+        detail_response = self.client.get(f"/api/articulos/{published.pk}/")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(
+            list_response.json(),
+            [
+                {
+                    "id": published.pk,
+                    "titulo": published.title,
+                    "cuerpo": published.content,
+                    "estado": "publicado",
+                }
+            ],
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(
+            detail_response.json(),
+            {
+                "id": published.pk,
+                "titulo": published.title,
+                "cuerpo": published.content,
+                "estado": "publicado",
+            },
+        )
+        self.assertEqual(self.client.get(f"/api/articulos/{draft.pk}/").status_code, 404)
+        self.assertEqual(self.client.get("/api/articulos/999999/").status_code, 404)
+
+    def test_draft_creation_requires_an_admin_token(self):
+        payload = {"titulo": "Nuevo artículo", "cuerpo": "Contenido nuevo."}
+
+        missing_token = self.client.post(
+            "/api/articulos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        invalid_token = self.client.post(
+            "/api/articulos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Token invalid",
+        )
+        non_admin_token = self.client.post(
+            "/api/articulos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.reader_token.key}",
+        )
+
+        self.assertEqual(missing_token.status_code, 401)
+        self.assertEqual(invalid_token.status_code, 401)
+        self.assertEqual(non_admin_token.status_code, 403)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_admin_can_create_a_complete_unpublished_article(self):
+        payload = {
+            "titulo": "Robótica educativa",
+            "cuerpo": "A" * 450,
+            "published": True,
+        }
+        response = self.client.post(
+            "/api/articulos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.admin_token.key}",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        article = Article.objects.get(pk=response.json()["id"])
+        self.assertEqual(
+            response.json(),
+            {
+                "id": article.pk,
+                "titulo": payload["titulo"],
+                "cuerpo": payload["cuerpo"],
+                "estado": "borrador",
+            },
+        )
+        self.assertFalse(article.published)
+        self.assertEqual(article.slug, "robotica-educativa")
+        self.assertEqual(article.content, payload["cuerpo"])
+        self.assertEqual(article.excerpt, payload["cuerpo"][:400])
+        self.assertEqual(article.author, self.admin.username)
+        self.assertIsNotNone(article.publication_date)
+        self.assertTrue(article.image.storage.exists(article.image.name))
+        self.assertEqual(self.client.get("/api/articulos/").json(), [])
+        self.assertEqual(self.client.get(f"/api/articulos/{article.pk}/").status_code, 404)
+        self.assertNotContains(self.client.get("/"), article.title)
+
+    def test_draft_creation_generates_a_unique_slug(self):
+        self.create_article(
+            title="Robótica educativa",
+            slug="robotica-educativa",
+        )
+        response = self.client.post(
+            "/api/articulos/",
+            data=json.dumps({"titulo": "Robótica educativa", "cuerpo": "Borrador."}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.admin_token.key}",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        article = Article.objects.get(pk=response.json()["id"])
+        self.assertEqual(article.slug, "robotica-educativa-2")
+
+    def test_draft_creation_validates_required_fields_and_title_length(self):
+        invalid_payloads = (
+            {},
+            {"titulo": "", "cuerpo": "Contenido."},
+            {"titulo": "Título", "cuerpo": "   "},
+            {"titulo": "T" * 201, "cuerpo": "Contenido."},
+        )
+
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                response = self.client.post(
+                    "/api/articulos/",
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                    HTTP_AUTHORIZATION=f"Token {self.admin_token.key}",
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIsInstance(response.json(), dict)
+                self.assertEqual(Article.objects.count(), 0)
 
 
 class EditorialAdminTests(TestCase):
